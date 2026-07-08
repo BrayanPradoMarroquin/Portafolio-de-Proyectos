@@ -1,4 +1,4 @@
-# SysCademi - Sistema de Gestión Escolar
+# SysCademy - Sistema de Gestión Escolar
 
 La creciente complejidad en la administración educativa exige soluciones tecnológicas robustas, escalables y adaptables. El presente proyecto consiste en el desarrollo de un Sistema de Gestión Escolar Integral, diseñado para optimizar los flujos de trabajo administrativos y académicos de las instituciones educativas. Para garantizar la independencia y evolución continua de sus funcionalidades, el sistema se estructura bajo una **arquitectura de microservicios**, desacoplando los seis módulos nucleares que rigen el ciclo académico: **Inscripciones, Pagos, Asignación de Grado, Gestión de Notas, Gestión de Cursos y Generación de Reportes**. Técnicamente, la solución se apoya en un backend basado en Node.js y TypeScript, lo que asegura alta concurrencia y tipado estático para reducir errores en tiempo de ejecución, mientras que el frontend desarrollado en React proporciona una interfaz dinámica, responsiva y de fácil interacción para los usuarios finales.
 
@@ -15,11 +15,11 @@ La creciente complejidad en la administración educativa exige soluciones tecnol
 #### Módulo de Gestión Académica (Grados y Asignaturas)
 - **RF‑05**: El sistema debe permitir la creación, edición y eliminación de **niveles** (Primaria, Básicos, Diversificado).
 - **RF‑06**: Cada nivel puede contener varios **grados** (ej. 1º Primaria, 2º Básico, etc.).
-- **RF‑07**: Cada grado puede tener asignaturas personalizables; el administrador puede agregar, modificar o eliminar asignaturas en cualquier momento.
+- **RF‑07**: Cada grado puede tener asignaturas personalizables; el **administrador** puede agregar, modificar o eliminar asignaturas en cualquier momento.
 - **RF‑08**: Las asignaturas se asocian a un grado específico y no pueden ser compartidas entre grados a menos que se configuren explícitamente.
 
 #### Módulo de Inscripción de Alumnos
-- **RF‑09**: El sistema permite inscribir un nuevo alumno registrando sus datos personales (nombre, apellido, fecha de nacimiento, DNI, dirección, teléfono, correo, etc.).
+- **RF‑09**: El sistema permite inscribir un nuevo alumno registrando sus datos personales (nombre, apellido, fecha de nacimiento, CUI, dirección, teléfono, correo, etc.).
 - **RF‑10**: Durante la inscripción, se debe asignar el alumno a un grado específico (de cualquier nivel).
 - **RF‑11**: Es posible reasignar un alumno a otro grado en cualquier momento (cambio de grado), manteniendo el historial de notas y pagos.
 - **RF‑12**: Cada alumno tiene un expediente que agrupa toda su información académica y financiera.
@@ -42,7 +42,7 @@ La creciente complejidad en la administración educativa exige soluciones tecnol
 #### Módulo de Reportes Estadísticos
 - **RF‑24**: El sistema genera reportes de rendimiento académico (promedios por grado, asignatura, bimestre).
 - **RF‑25**: Se pueden filtrar reportes por nivel, grado, asignatura, bimestre o rango de fechas.
-- **RF‑26**: Los reportes se pueden exportar en formatos CSV, Excel o PDF.
+- **RF‑26**: Los reportes se pueden exportar en formato PDF.
 - **RF‑27**: El sistema muestra dashboards con gráficos (barras, líneas, pastel) para visualizar tendencias de notas, asistencia (si se implementa) y pagos.
 
 #### Módulo de Roles y Vistas Personalizadas
@@ -61,7 +61,7 @@ La creciente complejidad en la administración educativa exige soluciones tecnol
 - **RNF‑04 (Seguridad)**: Todas las comunicaciones deben estar cifradas mediante HTTPS. Las contraseñas se almacenan con hash (bcrypt) y se usa JWT con expiración corta (15 minutos) y refresh tokens.
 - **RNF‑05 (Integridad de datos)**: Se deben implementar transacciones ACID en operaciones críticas (inscripción, registro de notas, pagos).
 - **RNF‑06 (Respaldo)**: Se realizarán copias de seguridad automáticas de la base de datos cada 6 horas, con retención de 30 días.
-- **RNF‑07 (Tecnologías)**: Backend con Node.js + TypeScript, Frontend con React, bases de datos relacionales (PostgreSQL) por microservicio, Docker, Kubernetes, CI/CD con GitHub Actions.
+- **RNF‑07 (Tecnologías)**: Backend con Node.js + TypeScript, Frontend con React, bases de datos relacionales (MySQL) por microservicio, Docker, Kubernetes, CI/CD con GitHub Actions.
 - **RNF‑08 (Logging y monitoreo)**: Todos los microservicios deben generar logs estructurados (JSON) y contar con métricas (Prometheus) y alertas (Grafana).
 - **RNF‑09 (Mantenibilidad)**: El código debe seguir estándares ESLint/Prettier y tener una cobertura de pruebas unitarias e integración superior al 80%.
 - **RNF‑10 (Usabilidad)**: La interfaz debe ser responsiva y accesible (WCAG 2.1 nivel AA), con mensajes de error claros y ayuda contextual.
@@ -202,3 +202,227 @@ La creciente complejidad en la administración educativa exige soluciones tecnol
   2. Visualiza la información sin posibilidad de modificarla.
 
 ---
+### 5. Documentación de Arquitectura
+
+#### Diagrama de Microservicios
+La arquitectura está orientada a dominios, donde cada microservicio es dueño de su propia lógica de negocio y base de datos. La comunicación entre el frontend y el backend se realiza a través de un **API Gateway** central (construido con Node.js y TypeScript), que actúa como punto único de entrada, maneja la autenticación (JWT), el rate limiting y el enrutamiento hacia los microservicios internos vía **REST**.
+
+![Arquitectura](assets/Arquitectura_Microservicio.png)
+
+Descripción de los microservicios:
+
+- API Gateway: Enruta las peticiones, valida el JWT, aplica políticas de CORS y limita la tasa de peticiones.
+
+- Auth Service: Responsable del login, gestión de usuarios (CRUD) y roles.
+
+- Academic Service: Administra la estructura educativa (niveles, grados, asignaturas).
+
+- Enrollment Service: Gestiona el expediente de alumnos, inscripciones y cambios de grado.
+
+- Grades Service: Administra bimestres, actividades, registro de notas y cálculo de promedios.
+
+- Payments Service: Maneja conceptos de pago, transacciones y recibos.
+
+- Reports Service: Orquesta la información de los demás servicios para generar estadísticas y boletas, almacenando datos agregados en su propia BD (o cache) para optimizar consultas pesadas.
+
+#### Modelo de Datos (MySQL)
+Cada microservicio posee su propia base de datos MySQL. Para mantener la integridad referencial entre servicios, se utilizarán UUIDs como identificadores primarios (ej. ```user_id```, ```student_id```, ```grade_id```), de modo que cada servicio pueda referenciar entidades de otros servicios sin necesidad de llaves foráneas físicas.
+
+##### Base de Datos: auth_db
+
+| Tabla |	Descripción |	Campos clave |
+| ------ | ------ | ----------------- | 
+| users |	Usuarios del sistema	| id (UUID PK), email, password_hash, full_name, is_active, created_at |
+| roles	| Catálogo de roles |	id (PK), name (ADMIN, TEACHER, STUDENT, PARENT) |
+| user_roles |	Relación N:N entre usuarios y roles |	user_id (FK a users.id), role_id (FK a roles.id) |
+| refresh_tokens |	Tokens para renovación de JWT |	id (PK), user_id (FK a users.id), token, expires_at, revoked |
+
+##### Base de Datos: academic_db
+
+| Tabla |	Descripción |	Campos clave |
+| ----- | ----------- | ------------ |
+| levels |	Niveles educativos (Primaria, Básicos, Diversificado) |	id (UUID PK), name, order_index, created_at |
+| grades |	Grados pertenecientes a un nivel |	id (UUID PK), level_id (FK a levels.id), name (ej. "1ro Primaria"), academic_year |
+| subjects |	Asignaturas asignadas a un grado |	id (UUID PK), grade_id (FK a grades.id), name, code, created_at |
+
+##### Base de Datos: enrollment_db
+
+| Tabla |	Descripción |	Campos clave |
+| ----- | ----------- | ------------ |
+| students |	Datos personales del alumno |	id (UUID PK), first_name, last_name, birth_date, dni, address, phone, email, guardian_name, guardian_phone |
+| student_grade_history	| Historial de asignación de grados por alumno |	id (UUID PK), student_id (FK a students.id), grade_id (referencia a Academic Service), start_date, end_date (NULL si está activo) |
+
+##### Base de Datos: grades_db
+
+| Tabla |	Descripción |	Campos clave |
+| ----- | ----------- | ------------ |
+| bimesters |	Definición de bimestres por año lectivo |	id (UUID PK), name (Bimestre 1..4), academic_year, start_date, end_date, is_active |
+| activities |	Actividades evaluadas por asignatura/bimestre |	id (UUID PK), subject_id (referencia a Academic Service), bimester_id (FK a bimesters.id), name, description, max_score, weight (porcentaje), due_date |
+| activity_scores |	Notas de cada alumno por actividad |	id (UUID PK), activity_id (FK a activities.id), student_id (referencia a Enrollment Service), score (decimal), created_at, updated_at |
+| final_averages |	Promedio final por alumno/asignatura (cálculo automático) |	id (UUID PK), student_id, subject_id, average_score (promedio de 4 bimestres), academic_year |
+
+##### Base de Datos: payments_db
+
+| Tabla |	Descripción |	Campos clave |
+| ----- | ----------- | ------------ |
+| payment_concepts |	Catálogo de conceptos de pago |	id (UUID PK), name (Matrícula, Pensión, etc.), amount, grade_id (opcional, referencia a Academic Service) |
+| payments |	Registro de transacciones |	id (UUID PK), student_id (referencia a Enrollment Service), concept_id (FK a payment_concepts.id), amount, payment_date, due_date, status (PAGADO, PENDIENTE, VENCIDO), receipt_number (autogenerado), receipt_pdf_url |
+
+##### Base de Datos: reports_db
+
+| Tabla |	Descripción |	Campos clave |
+| ----- | ----------- | ------------ |
+| report_cache |	Almacena agregados para dashboards |	id (UUID PK), report_type (ACADEMIC, FINANCIAL), data (JSON), generated_at, filters (JSON) |
+
+--------
+
+### 6. Contratos de API (OpenAPI 3.0.0)
+A continuación se definen los contratos mediante la especificación OpenAPI. El API Gateway expone todas las rutas con el prefijo ```/api/v1/```. Todas las rutas (excepto ```/auth/login``` y ```/auth/refresh```) requieren el header ```Authorization: Bearer <jwt_token>```.
+
+##### Servicio de Autenticación (```/auth```)
+
+```
+openapi: 3.0.0
+info:
+  title: Auth Service API
+  version: 1.0.0
+servers:
+  - url: https://api.example.com/api/v1/auth
+paths:
+  /login:
+    post:
+      summary: Iniciar sesión
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: { type: string }
+                password: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token: { type: string }
+                  refresh_token: { type: string }
+                  user: 
+                    type: object
+                    properties:
+                      id: { type: string }
+                      email: { type: string }
+                      full_name: { type: string }
+                      roles: { type: array, items: { type: string } }
+        '401': { description: Credenciales inválidas }
+  /refresh:
+    post:
+      summary: Renovar JWT
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refresh_token: { type: string }
+      responses:
+        '200': { description: Nuevo access_token }
+  /users:
+    post:
+      summary: Crear usuario (solo Administración)
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: { type: string }
+                password: { type: string }
+                full_name: { type: string }
+                roles: { type: array, items: { type: string } } # ADMIN, TEACHER, STUDENT, PARENT
+      responses:
+        '201': { description: Usuario creado }
+```
+
+##### Servicio Académico (```/academic```)
+
+
+| Método |	Endpoint |	Descripción | Auth |
+| ------ | --------- | ------------ | ---- |
+| GET |	/levels |	Obtener todos los niveles |	Sí |
+| POST | 	/levels |	Crear un nuevo nivel |	ADMIN |
+| GET |	/levels/{id}/grades |	Obtener grados de un nivel |	Sí |
+| POST | /grades |	Crear un grado |	ADMIN |
+| GET	| /grades/{id}/subjects |	Obtener asignaturas de un grado |	Sí |
+| POST |	/subjects |	Agregar asignatura a un grado |	ADMIN |
+| PUT |	/subjects/{id} |	Editar asignatura |	ADMIN |
+| DELETE | /subjects/{id} |	Eliminar asignatura |	ADMIN |
+
+##### Servicio de Inscripción (```/enrollment```)
+
+| Método |	Endpoint |	Descripción |	Auth |
+| ------ | --------- | ------------ | ---- |
+| POST | /students | Inscribir un nuevo alumno | ADMIN |
+| GET |	/students/{id} |	Obtener datos del alumno |	ADMIN/TEACHER/STUDENT/PARENT* |
+| PUT |	/students/{id} |	Actualizar datos del alumno |	ADMIN |
+| POST |	/students/{id}/change-grade |	Cambiar de grado (crea un registro en history) |	ADMIN |
+| GET |	/students/{id}/history |	Ver historial de grados del alumno | ADMIN/TEACHER |
+| GET	| /grades/{id}/students |	Listar alumnos de un grado específico |	ADMIN/TEACHER |
+
+*Los padres solo ven a sus hijos asociados; los alumnos solo ven su propio perfil.
+
+##### Servicio de Notas (```/grades```)
+
+| Método |	Endpoint |	Descripción |	Auth |
+| ------ | --------- | ------------ | ---- |
+| GET |	/bimesters/current |	Obtener bimestre activo actual |	Sí |
+| POST |	/bimesters |	Crear un bimestre (configuración año) |	ADMIN |
+| POST |	/activities |	Crear actividad en una asignatura/bimestre |	TEACHER |
+| GET |	/activities/{id} |	Obtener detalles de una actividad |	TEACHER/ADMIN |
+| PUT |	/activities/{id} |	Editar actividad |	TEACHER |
+| DELETE | /activities/{id} |	Eliminar actividad |	TEACHER |
+| POST |	/scores |	Registrar/actualizar nota de un alumno en una actividad |	TEACHER |
+| GET |	/students/{studentId}/bimesters/{bimesterId}/grades |	Obtener notas de un alumno por bimestre |	TEACHER/STUDENT/PARENT* |
+| GET |	/students/{studentId}/final-average |	Obtener promedio final por asignatura |	TEACHER/STUDENT/PARENT* |
+| GET |	/students/{studentId}/report-card |	Generar boleta de notas (PDF) |	ADMIN/TEACHER/STUDENT/PARENT* |
+
+##### Servicio de Pagos (```/payments```)
+
+| Método |	Endpoint | 	Descripción |	Auth |
+| ------ | --------- | ------------ | ---- |
+| POST | /concepts |	Crear concepto de pago |	ADMIN |
+| GET |	/concepts |	Listar conceptos |	ADMIN |
+| POST |	/transactions |	Registrar un pago de un alumno |	ADMIN |
+| GET |	/students/{studentId}/transactions |	Historial de pagos del alumno |	ADMIN/STUDENT/PARENT* |
+| GET |	/transactions/{id}/receipt |	Descargar recibo en PDF |	ADMIN/STUDENT/PARENT* |
+| GET |	/students/{studentId}/balance |	Obtener saldo pendiente del alumno |	ADMIN |
+
+##### Servicio de Reportes (```/reports```)
+
+| Método |	Endpoint |	Descripción |	Auth |
+| ------ | --------- | ------------ | ---- |
+| POST | /academic |	Generar reporte académico (filtros: grade_id, subject_id, bimester, etc.) |	ADMIN/TEACHER |
+| POST | /financial |	Generar reporte financiero (filtros: date_range, grade_id) |	ADMIN |
+| GET |	/dashboard/admin |	Datos para dashboard de administración |	ADMIN |
+| GET |	/dashboard/teacher/{id} |	Datos para dashboard del docente |	TEACHER |
+
+#### Ejemplo de Flujo de Comunicación (REST)
+
+1. Inicio de sesión:
+  - Frontend → POST /auth/login → API Gateway → Auth Service.
+  - Auth Service valida credenciales y retorna JWT.
+2. Registro de notas:
+  - Frontend (Docente) → POST /grades/scores → API Gateway (valida JWT y rol).
+  - Gateway enruta al Grades Service.
+  - Grades Service guarda la nota en su DB (activity_scores), haciendo referencia al student_id (UUID) que proviene del Enrollment Service, pero sin consultarlo directamente (desacoplamiento).
+3. Generación de boleta:
+  - Frontend → GET /grades/students/{id}/report-card → API Gateway → Grades Service.
+  - Grades Service consulta sus propias tablas (activity_scores, final_averages), y si necesita el nombre del alumno o del grado, realiza una llamada REST interna al Enrollment Service o Academic Service (o bien, el Reports Service orquesta esta lógica si es un reporte complejo).
+
+**Nota**: Todos los servicios exponen sus propias verificaciones de salud (```/health```) para que Kubernetes (liveness/readiness probes) pueda monitorearlos.
+
