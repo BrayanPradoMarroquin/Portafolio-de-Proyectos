@@ -202,9 +202,10 @@ La creciente complejidad en la administración educativa exige soluciones tecnol
   2. Visualiza la información sin posibilidad de modificarla.
 
 ---
-### 5. Documentación de Arquitectura
 
-#### Diagrama de Microservicios
+## Documentación de Arquitectura
+
+### 1. Diagrama de Microservicios
 La arquitectura está orientada a dominios, donde cada microservicio es dueño de su propia lógica de negocio y base de datos. La comunicación entre el frontend y el backend se realiza a través de un **API Gateway** central (construido con Node.js y TypeScript), que actúa como punto único de entrada, maneja la autenticación (JWT), el rate limiting y el enrutamiento hacia los microservicios internos vía **REST**.
 
 ![Arquitectura](assets/Arquitectura_Microservicio.png)
@@ -225,10 +226,12 @@ Descripción de los microservicios:
 
 - Reports Service: Orquesta la información de los demás servicios para generar estadísticas y boletas, almacenando datos agregados en su propia BD (o cache) para optimizar consultas pesadas.
 
-#### Modelo de Datos (MySQL)
+-----
+
+### 2. Modelo de Datos (MySQL)
 Cada microservicio posee su propia base de datos MySQL. Para mantener la integridad referencial entre servicios, se utilizarán UUIDs como identificadores primarios (ej. ```user_id```, ```student_id```, ```grade_id```), de modo que cada servicio pueda referenciar entidades de otros servicios sin necesidad de llaves foráneas físicas.
 
-##### Base de Datos: auth_db
+#### Base de Datos: auth_db
 
 | Tabla |	Descripción |	Campos clave |
 | ------ | ------ | ----------------- | 
@@ -237,7 +240,7 @@ Cada microservicio posee su propia base de datos MySQL. Para mantener la integri
 | user_roles |	Relación N:N entre usuarios y roles |	user_id (FK a users.id), role_id (FK a roles.id) |
 | refresh_tokens |	Tokens para renovación de JWT |	id (PK), user_id (FK a users.id), token, expires_at, revoked |
 
-##### Base de Datos: academic_db
+#### Base de Datos: academic_db
 
 | Tabla |	Descripción |	Campos clave |
 | ----- | ----------- | ------------ |
@@ -245,14 +248,14 @@ Cada microservicio posee su propia base de datos MySQL. Para mantener la integri
 | grades |	Grados pertenecientes a un nivel |	id (UUID PK), level_id (FK a levels.id), name (ej. "1ro Primaria"), academic_year |
 | subjects |	Asignaturas asignadas a un grado |	id (UUID PK), grade_id (FK a grades.id), name, code, created_at |
 
-##### Base de Datos: enrollment_db
+#### Base de Datos: enrollment_db
 
 | Tabla |	Descripción |	Campos clave |
 | ----- | ----------- | ------------ |
 | students |	Datos personales del alumno |	id (UUID PK), first_name, last_name, birth_date, dni, address, phone, email, guardian_name, guardian_phone |
 | student_grade_history	| Historial de asignación de grados por alumno |	id (UUID PK), student_id (FK a students.id), grade_id (referencia a Academic Service), start_date, end_date (NULL si está activo) |
 
-##### Base de Datos: grades_db
+#### Base de Datos: grades_db
 
 | Tabla |	Descripción |	Campos clave |
 | ----- | ----------- | ------------ |
@@ -261,14 +264,14 @@ Cada microservicio posee su propia base de datos MySQL. Para mantener la integri
 | activity_scores |	Notas de cada alumno por actividad |	id (UUID PK), activity_id (FK a activities.id), student_id (referencia a Enrollment Service), score (decimal), created_at, updated_at |
 | final_averages |	Promedio final por alumno/asignatura (cálculo automático) |	id (UUID PK), student_id, subject_id, average_score (promedio de 4 bimestres), academic_year |
 
-##### Base de Datos: payments_db
+#### Base de Datos: payments_db
 
 | Tabla |	Descripción |	Campos clave |
 | ----- | ----------- | ------------ |
 | payment_concepts |	Catálogo de conceptos de pago |	id (UUID PK), name (Matrícula, Pensión, etc.), amount, grade_id (opcional, referencia a Academic Service) |
 | payments |	Registro de transacciones |	id (UUID PK), student_id (referencia a Enrollment Service), concept_id (FK a payment_concepts.id), amount, payment_date, due_date, status (PAGADO, PENDIENTE, VENCIDO), receipt_number (autogenerado), receipt_pdf_url |
 
-##### Base de Datos: reports_db
+#### Base de Datos: reports_db
 
 | Tabla |	Descripción |	Campos clave |
 | ----- | ----------- | ------------ |
@@ -276,10 +279,10 @@ Cada microservicio posee su propia base de datos MySQL. Para mantener la integri
 
 --------
 
-### 6. Contratos de API (OpenAPI 3.0.0)
+### 3. Contratos de API (OpenAPI 3.0.0)
 A continuación se definen los contratos mediante la especificación OpenAPI. El API Gateway expone todas las rutas con el prefijo ```/api/v1/```. Todas las rutas (excepto ```/auth/login``` y ```/auth/refresh```) requieren el header ```Authorization: Bearer <jwt_token>```.
 
-##### Servicio de Autenticación (```/auth```)
+#### Servicio de Autenticación (```/auth```)
 
 ```
 openapi: 3.0.0
@@ -349,7 +352,7 @@ paths:
         '201': { description: Usuario creado }
 ```
 
-##### Servicio Académico (```/academic```)
+#### Servicio Académico (```/academic```)
 
 
 | Método |	Endpoint |	Descripción | Auth |
@@ -363,7 +366,7 @@ paths:
 | PUT |	/subjects/{id} |	Editar asignatura |	ADMIN |
 | DELETE | /subjects/{id} |	Eliminar asignatura |	ADMIN |
 
-##### Servicio de Inscripción (```/enrollment```)
+#### Servicio de Inscripción (```/enrollment```)
 
 | Método |	Endpoint |	Descripción |	Auth |
 | ------ | --------- | ------------ | ---- |
@@ -376,7 +379,7 @@ paths:
 
 *Los padres solo ven a sus hijos asociados; los alumnos solo ven su propio perfil.
 
-##### Servicio de Notas (```/grades```)
+#### Servicio de Notas (```/grades```)
 
 | Método |	Endpoint |	Descripción |	Auth |
 | ------ | --------- | ------------ | ---- |
@@ -391,7 +394,7 @@ paths:
 | GET |	/students/{studentId}/final-average |	Obtener promedio final por asignatura |	TEACHER/STUDENT/PARENT* |
 | GET |	/students/{studentId}/report-card |	Generar boleta de notas (PDF) |	ADMIN/TEACHER/STUDENT/PARENT* |
 
-##### Servicio de Pagos (```/payments```)
+#### Servicio de Pagos (```/payments```)
 
 | Método |	Endpoint | 	Descripción |	Auth |
 | ------ | --------- | ------------ | ---- |
@@ -402,7 +405,7 @@ paths:
 | GET |	/transactions/{id}/receipt |	Descargar recibo en PDF |	ADMIN/STUDENT/PARENT* |
 | GET |	/students/{studentId}/balance |	Obtener saldo pendiente del alumno |	ADMIN |
 
-##### Servicio de Reportes (```/reports```)
+#### Servicio de Reportes (```/reports```)
 
 | Método |	Endpoint |	Descripción |	Auth |
 | ------ | --------- | ------------ | ---- |
@@ -411,7 +414,9 @@ paths:
 | GET |	/dashboard/admin |	Datos para dashboard de administración |	ADMIN |
 | GET |	/dashboard/teacher/{id} |	Datos para dashboard del docente |	TEACHER |
 
-#### Ejemplo de Flujo de Comunicación (REST)
+------
+
+### 4. Ejemplo de Flujo de Comunicación (REST)
 
 1. Inicio de sesión:
   - Frontend → POST /auth/login → API Gateway → Auth Service.
@@ -425,4 +430,521 @@ paths:
   - Grades Service consulta sus propias tablas (activity_scores, final_averages), y si necesita el nombre del alumno o del grado, realiza una llamada REST interna al Enrollment Service o Academic Service (o bien, el Reports Service orquesta esta lógica si es un reporte complejo).
 
 **Nota**: Todos los servicios exponen sus propias verificaciones de salud (```/health```) para que Kubernetes (liveness/readiness probes) pueda monitorearlos.
+
+---------
+
+## Documentación de Infraestructura y Despliegue
+
+### 1. Estrategia General
+
+- **Contenedores**: Cada microservicio y el frontend se empaquetan en imágenes Docker ligeras (basadas en Alpine).
+- **Orquestación**: Kubernetes gestiona el despliegue, escalado y recuperación de los contenedores.
+- **Bases de Datos**: Durante el desarrollo y pruebas locales, las bases de datos MySQL se ejecutan **directamente en la computadora del desarrollador** (no dentro de contenedores ni en el clúster). Para entornos de producción, se utilizarán bases de datos externas (RDS, Cloud SQL, etc.) con sus propias estrategias de respaldo.
+- **CI/CD**: GitHub Actions automatiza la construcción, pruebas y despliegue continuo utilizando **Kustomize** para diferenciar entornos.
+- **Registro de Imágenes**: GitHub Container Registry (GHCR) almacena las imágenes versionadas con el hash del commit y el nombre de la rama.
+
+### 2. Dockerfiles
+
+#### 2.1. Dockerfile para Microservicios (Node.js + TypeScript)
+*Ejemplo base para `auth-service`, aplicable a todos los microservicios.*
+
+```dockerfile
+# Etapa 1: Compilación
+FROM node:18-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production && npm cache clean --force
+COPY . .
+RUN npm run build
+
+# Etapa 2: Producción
+FROM node:18-alpine
+WORKDIR /app
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/package.json ./
+EXPOSE 3000
+CMD ["node", "dist/main.js"]
+```
+
+#### 2.2. Dockerfile para el Frontend (React + TypeScript)
+
+Servido con Nginx para mejorar el rendimiento.
+
+```
+# Etapa 1: Construcción
+FROM node:18-alpine AS build
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+# Etapa 2: Servidor Nginx
+FROM nginx:alpine
+COPY --from=build /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+```
+
+Archivo nginx.conf para manejar el routing de React (SPA):
+
+```
+server {
+    listen 80;
+    location / {
+        root /usr/share/nginx/html;
+        try_files $uri $uri/ /index.html;
+    }
+}
+```
+
+#### 2.3. Docker Compose para Desarrollo Local (Bases de Datos en la Máquina Host)
+
+**Requisito previo:** Tener MySQL 8.0 instalado en tu máquina y crear las 6 bases de datos (auth_db, academic_db, enrollment_db, grades_db, payments_db, reports_db) con sus respectivos usuarios y contraseñas.
+
+docker-compose.yml (sin servicios de base de datos)
+
+```
+version: '3.8'
+
+services:
+  # API Gateway
+  api-gateway:
+    build: ./api-gateway
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - JWT_SECRET=dev_secret
+      - AUTH_SERVICE_URL=http://auth-service:3000
+      - ACADEMIC_SERVICE_URL=http://academic-service:3000
+      - ENROLLMENT_SERVICE_URL=http://enrollment-service:3000
+      - GRADES_SERVICE_URL=http://grades-service:3000
+      - PAYMENTS_SERVICE_URL=http://payments-service:3000
+      - REPORTS_SERVICE_URL=http://reports-service:3000
+    depends_on:
+      - auth-service
+      - academic-service
+      - enrollment-service
+      - grades-service
+      - payments-service
+      - reports-service
+
+  # Microservicios
+  auth-service:
+    build: ./services/auth
+    environment:
+      - DB_HOST=host.docker.internal   # En Linux usar: 172.17.0.1
+      - DB_USER=root
+      - DB_PASSWORD=tu_contraseña_local
+      - DB_NAME=auth_db
+      - DB_PORT=3306
+    ports:
+      - "3001:3000"   # Mapeo para depuración local
+
+  academic-service:
+    build: ./services/academic
+    environment:
+      - DB_HOST=host.docker.internal
+      - DB_USER=root
+      - DB_PASSWORD=tu_contraseña_local
+      - DB_NAME=academic_db
+      - DB_PORT=3306
+
+  enrollment-service:
+    build: ./services/enrollment
+    environment:
+      - DB_HOST=host.docker.internal
+      - DB_USER=root
+      - DB_PASSWORD=tu_contraseña_local
+      - DB_NAME=enrollment_db
+      - DB_PORT=3306
+
+  grades-service:
+    build: ./services/grades
+    environment:
+      - DB_HOST=host.docker.internal
+      - DB_USER=root
+      - DB_PASSWORD=tu_contraseña_local
+      - DB_NAME=grades_db
+      - DB_PORT=3306
+
+  payments-service:
+    build: ./services/payments
+    environment:
+      - DB_HOST=host.docker.internal
+      - DB_USER=root
+      - DB_PASSWORD=tu_contraseña_local
+      - DB_NAME=payments_db
+      - DB_PORT=3306
+
+  reports-service:
+    build: ./services/reports
+    environment:
+      - DB_HOST=host.docker.internal
+      - DB_USER=root
+      - DB_PASSWORD=tu_contraseña_local
+      - DB_NAME=reports_db
+      - DB_PORT=3306
+
+  # Frontend
+  frontend:
+    build: ./frontend
+    ports:
+      - "80:80"
+```
+
+#### 2.4. Configuración de las Bases de Datos Locales
+
+Antes de levantar el entorno, asegúrate de tener MySQL 8.0 instalado en tu computadora y ejecuta los siguientes comandos para crear las bases de datos y usuarios:
+
+```
+CREATE DATABASE auth_db;
+CREATE DATABASE academic_db;
+CREATE DATABASE enrollment_db;
+CREATE DATABASE grades_db;
+CREATE DATABASE payments_db;
+CREATE DATABASE reports_db;
+
+-- Si usas usuario 'root' con contraseña, no es necesario crear usuarios adicionales.
+-- Recomendado: Crear un usuario específico para cada servicio.
+CREATE USER 'auth_user'@'%' IDENTIFIED BY 'password123';
+GRANT ALL PRIVILEGES ON auth_db.* TO 'auth_user'@'%';
+
+-- Repetir para los demás servicios:
+CREATE USER 'academic_user'@'%' IDENTIFIED BY 'password123';
+GRANT ALL PRIVILEGES ON academic_db.* TO 'academic_user'@'%';
+-- ...
+FLUSH PRIVILEGES;
+```
+
+----
+
+## Documentación de Desarrollo
+
+### 1. Estructura del Proyecto (Monorepo)
+
+El proyecto se organiza como un **monorepo** utilizando npm workspaces (o yarn workspaces) para gestionar todos los servicios y el frontend en un solo repositorio. Esto facilita el compartir configuraciones y utilidades comunes.
+
+```
+school-system/
+├── .github/
+│ └── workflows/ # CI/CD con GitHub Actions
+├── packages/
+│ ├── shared/ # Utilidades compartidas (tipos, validadores, constantes)
+│ │ ├── src/
+│ │ │ ├── types/ # Interfaces y tipos comunes (ej. IUser, IRole)
+│ │ │ ├── validators/ # Validaciones con Zod o Joi
+│ │ │ └── constants/ # Constantes globales
+│ │ └── package.json
+│ ├── api-gateway/ # API Gateway (Node.js + TypeScript)
+│ │ ├── src/
+│ │ │ ├── routes/ # Definición de rutas y proxy a servicios
+│ │ │ ├── middlewares/ # Autenticación, rate limiting, CORS
+│ │ │ ├── config/ # Configuración de entorno
+│ │ │ └── server.ts # Punto de entrada
+│ │ ├── package.json
+│ │ └── tsconfig.json
+│ ├── services/
+│ │ ├── auth-service/ # Servicio de autenticación
+│ │ ├── academic-service/ # Servicio académico
+│ │ ├── enrollment-service/ # Servicio de inscripción
+│ │ ├── grades-service/ # Servicio de notas
+│ │ ├── payments-service/ # Servicio de pagos
+│ │ └── reports-service/ # Servicio de reportes
+│ │ # Cada servicio tiene la misma estructura interna:
+│ │ ├── src/
+│ │ │ ├── controllers/ # Controladores (lógica de peticiones)
+│ │ │ ├── services/ # Lógica de negocio
+│ │ │ ├── repositories/ # Acceso a base de datos (DAO/ORM)
+│ │ │ ├── models/ # Definición de entidades (TypeORM/Sequelize)
+│ │ │ ├── middlewares/ # Middlewares específicos del servicio
+│ │ │ ├── routes/ # Definición de endpoints
+│ │ │ ├── utils/ # Helpers internos
+│ │ │ ├── config/ # Configuración (DB, JWT, etc.)
+│ │ │ └── app.ts # Configuración de Express/Fastify
+│ │ ├── migrations/ # Migraciones de base de datos (Knex/TypeORM)
+│ │ ├── seeds/ # Datos de prueba (semillas)
+│ │ ├── tests/
+│ │ │ ├── unit/ # Pruebas unitarias
+│ │ │ └── integration/ # Pruebas de integración (API)
+│ │ ├── package.json
+│ │ ├── tsconfig.json
+│ │ ├── .env.example # Ejemplo de variables de entorno
+│ │ └── Dockerfile
+│ └── frontend/ # Aplicación React + TypeScript
+│ ├── src/
+│ │ ├── components/ # Componentes reutilizables
+│ │ ├── pages/ # Páginas principales (Dashboard, Login, etc.)
+│ │ ├── hooks/ # Custom hooks (React)
+│ │ ├── contexts/ # Contextos (Auth, Theme, etc.)
+│ │ ├── services/ # Clientes para consumir la API (axios)
+│ │ ├── utils/ # Helpers (formateo, validación)
+│ │ ├── types/ # Tipos de TypeScript para el frontend
+│ │ ├── App.tsx
+│ │ └── index.tsx
+│ ├── public/ # Archivos estáticos
+│ ├── package.json
+│ ├── tsconfig.json
+│ ├── vite.config.ts # o webpack.config.js
+│ └── Dockerfile
+├── docker-compose.yml # Entorno local con todas las bases de datos
+├── k8s/ # Manifiestos de Kubernetes
+├── package.json # Raíz del monorepo (workspaces)
+├── .eslintrc.js # Configuración global de ESLint
+├── .prettierrc # Configuración de Prettier
+├── tsconfig.base.json # Configuración base de TypeScript
+└── README.md
+```
+
+----
+
+### 2. Estructura Interna de un Microservicio
+
+Cada servicio sigue el patrón MVC + Repositorio:
+
+- Controllers: Reciben la petición, validan datos, llaman a servicios y envían respuesta.
+
+- Services: Contienen la lógica de negocio pura (independiente del framework HTTP).
+
+- Repositories: Manejan la interacción con la base de datos usando un ORM (TypeORM, Prisma o Knex).
+
+- Models: Definen las entidades de la base de datos.
+
+-----
+
+### 3. Configuración del Entorno Local
+
+#### 3.1. Requisitos Previos
+Node.js >= 18
+
+npm >= 9 o yarn >= 1.22
+
+Docker y Docker Compose (para levantar las bases de datos MySQL)
+
+(Opcional) Minikube o Kind para pruebas de Kubernetes
+
+#### 3.2. Pasos para Levantar el Entorno
+- Clonar el repositorio:
+
+```
+git clone https://github.com/tu-org/school-system.git
+cd school-system
+```
+
+- Instalar dependencias (desde la raíz del monorepo):
+
+```
+npm install
+# o
+yarn install
+```
+
+- Configurar variables de entorno:
+Cada servicio tiene un archivo .env.example. Cópialo a .env y ajusta los valores según tu entorno local.
+
+```
+# Ejemplo para auth-service
+cd packages/services/auth-service
+cp .env.example .env
+```
+
+- Variables comunes:
+
+```
+# .env para cada servicio
+PORT=3001
+NODE_ENV=development
+DB_HOST=localhost          # o la IP del contenedor MySQL
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=root123
+DB_NAME=auth_db
+JWT_SECRET=mi_secreto_super_seguro
+LOG_LEVEL=debug
+```
+
+- Levantar las bases de datos con Docker Compose (desde la raíz):
+
+```
+docker-compose up -d mysql-auth mysql-academic mysql-enrollment mysql-grades mysql-payments mysql-reports
+```
+
+Esto levantará 6 contenedores MySQL independientes, uno por cada servicio. Los datos persisten en volúmenes Docker locales.
+
+- Ejecutar migraciones y semillas (para cada servicio):
+
+```
+# Dentro de cada servicio
+cd packages/services/auth-service
+npm run migrate          # Crea las tablas
+npm run seed             # Opcional: carga datos de prueba (roles, usuarios demo)
+```
+
+- Iniciar todos los servicios en modo desarrollo:
+Desde la raíz del monorepo:
+
+```
+npm run dev              # Usa concurrently o npm-run-all para 
+```
+
+- Levantar el frontend:
+
+```
+cd packages/frontend
+npm run dev              # Normalmente en http://localhost:5173 (Vite)
+```
+
+#### 3.3 Estrategia de Pruebas
+
+##### 3.3.1. Tipos de Pruebas
+
+| Tipo | Herramienta | Ubicación | Ejecución |
+| ---- | ----------- | --------- | --------- |
+| Unitarias | Jest + ts-jest | tests/unit/ | npm run test:unit |
+| Integración	| Jest + Supertest | tests/integration/ |	npm run test:int |
+| E2E (Frontend) | Cypress o Playwright |	packages/frontend/e2e/ | npm run test:e2e |
+| Cobertura |	Jest | --coverage	Reports en coverage/ | Mínimo 80% |
+
+##### 3.3.2. Configuración de Jest (para cada servicio)
+
+```jest.config.js:```
+
+```
+module.exports = {
+  preset: 'ts-jest',
+  testEnvironment: 'node',
+  roots: ['<rootDir>/src', '<rootDir>/tests'],
+  testMatch: ['**/tests/**/*.test.ts'],
+  collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts', '!src/**/index.ts'],
+  coverageThreshold: {
+    global: {
+      branches: 80,
+      functions: 80,
+      lines: 80,
+      statements: 80,
+    },
+  },
+  setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
+};
+```
+
+```tests/setup.ts``` (para pruebas de integración):
+
+```
+import { beforeAll, afterAll } from '@jest/globals';
+import { app } from '../src/app';
+
+let server: any;
+
+beforeAll(() => {
+  server = app.listen(0); // Puerto aleatorio para pruebas
+});
+
+afterAll(() => {
+  server.close();
+});
+```
+
+##### 3.3.3. Scripts en ```package.json```
+
+```
+{
+  "scripts": {
+    "test": "jest --coverage",
+    "test:unit": "jest tests/unit",
+    "test:int": "jest tests/integration",
+    "test:watch": "jest --watch",
+    "test:ci": "jest --coverage --maxWorkers=2"
+  }
+}
+```
+
+#### 3.4 Manejo de Errores y Logging
+
+##### 3.4.1 Logging Estructurado (JSON)
+
+Usamos Pino o Winston para generar logs en formato JSON, lo que facilita su ingestión en herramientas como ELK o Datadog.
+
+```src/utils/logger.ts```
+
+```
+import pino from 'pino';
+
+const logger = pino({
+  level: process.env.LOG_LEVEL || 'info',
+  transport:
+    process.env.NODE_ENV === 'development'
+      ? { target: 'pino-pretty', options: { colorize: true } }
+      : undefined,
+  timestamp: pino.stdTimeFunctions.isoTime,
+});
+
+export default logger;
+```
+
+##### 3.4.2 Middleware Centralizado de Errores
+
+Todos los microservicios deben tener un middleware que capture errores y devuelva una respuesta estandarizada.
+
+```src/middlewares/errorHandler.ts```
+
+```
+import { Request, Response, NextFunction } from 'express';
+import logger from '../utils/logger';
+
+export class AppError extends Error {
+  public statusCode: number;
+  public code: string;
+
+  constructor(message: string, statusCode: number = 500, code: string = 'INTERNAL_ERROR') {
+    super(message);
+    this.statusCode = statusCode;
+    this.code = code;
+    Error.captureStackTrace(this, this.constructor);
+  }
+}
+
+export const errorHandler = (
+  err: Error | AppError,
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  const status = err instanceof AppError ? err.statusCode : 500;
+  const code = err instanceof AppError ? err.code : 'INTERNAL_ERROR';
+  const message = err.message || 'Error interno del servidor';
+
+  logger.error({
+    error: err.stack,
+    path: req.path,
+    method: req.method,
+    status,
+  });
+
+  res.status(status).json({
+    success: false,
+    error: {
+      code,
+      message,
+      timestamp: new Date().toISOString(),
+      path: req.path,
+    },
+  });
+};
+```
+
+**Códigos de error estandarizados:**
+
+| Código | Significado | HTTP Status |
+| ------ | ----------- | ----------- |
+| VALIDATION_ERROR | Error de validación de datos |	400 |
+| UNAUTHORIZED | No autenticado |	401 |
+| FORBIDDEN	| No autorizado (rol incorrecto) | 403 |
+| NOT_FOUND |	Recurso no encontrado |	404 |
+| DUPLICATE_ENTRY	| Registro duplicado | 409 |
+| DB_ERROR | Error de base de datos |	500 |
+| EXTERNAL_ERROR | Error en llamada a otro servicio	| 502 |
 
